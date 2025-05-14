@@ -1441,9 +1441,19 @@ BOOL _fileIsSymbolicLink(const unz_file_info *fileInfo);
         attributes[@"external_fa"] = @(fileInfo.external_fa);
         attributes[@"internal_fa"] = @(fileInfo.internal_fa);
 
+        // 新增 type 属性
+        NSString *type = @"file";
+        if ([entryPath _isDirectory]) {
+            type = @"directory";
+        } else if (_fileIsSymbolicLink(&fileInfo)) {
+            type = @"symlink";
+        }
+        attributes[@"type"] = type;
+
         ZipArchiveEntry *entry = [[ZipArchiveEntry alloc] initWithPath:entryPath
                                                                  size:fileInfo.uncompressed_size
-                                                           attributes:attributes];
+                                                           attributes:attributes
+                                                                 type:type];
         [entries addObject:entry];
 
         ret = unzGoToNextFile(zip);
