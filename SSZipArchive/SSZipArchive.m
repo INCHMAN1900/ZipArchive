@@ -1462,6 +1462,84 @@ BOOL _fileIsSymbolicLink(const unz_file_info *fileInfo);
     return entries;
 }
 
++ (NSData *)dataForEntryAtPath:(NSString *)entryPath inZipFile:(NSString *)zipPath error:(NSError **)error
+{
+    if (error) *error = nil;
+    if (!entryPath.length || !zipPath.length) {
+        if (error) {
+            *error = [NSError errorWithDomain:SSZipArchiveErrorDomain code:SSZipArchiveErrorCodeInvalidArguments userInfo:@{NSLocalizedDescriptionKey: @"Invalid arguments"}];
+        }
+        return nil;
+    }
+
+    zipFile zip = unzOpen(zipPath.fileSystemRepresentation);
+    if (zip == NULL) {
+        if (error) {
+            *error = [NSError errorWithDomain:SSZipArchiveErrorDomain code:SSZipArchiveErrorCodeFailedOpenZipFile userInfo:@{NSLocalizedDescriptionKey: @"Failed to open zip file"}];
+        }
+        return nil;
+    }
+
+    int ret = unzLocateFile(zip, [entryPath fileSystemRepresentation], 0);
+    if (ret != UNZ_OK) {
+        unzClose(zip);
+        if (error) {
+            *error = [NSError errorWithDomain:SSZipArchiveErrorDomain code:SSZipArchiveErrorCodeFileInfoNotLoadable userInfo:@{NSLocalizedDescriptionKey: @"Entry not found in zip"}];
+        }
+        return nil;
+    }
+
+    ret = unzOpenCurrentFile(zip);
+    if (ret != UNZ_OK) {
+        unzClose(zip);
+        if (error) {
+            *error = [NSError errorWithDomain:SSZipArchiveErrorDomain code:SSZipArchiveErrorCodeFailedOpenFileInZip userInfo:@{NSLocalizedDescriptionKey: @"Failed to open entry in zip"}];
+        }
+        return nil;
+    }
+
+    unz_file_info fileInfo = {};
+    ret = unzGetCurrentFileInfo(zip, &fileInfo, NULL, 0, NULL, 0, NULL, 0);
+    if (ret != UNZ_OK) {
+        unzCloseCurrentFile(zip);
+        unzClose(zip);
+        if (error) {
+            *error = [NSError errorWithDomain:SSZipArchiveErrorDomain code:SSZipArchiveErrorCodeFileInfoNotLoadable userInfo:@{NSLocalizedDescriptionKey: @"Failed to get entry info"}];
+        }
+        return nil;
+    }
+
+    NSMutableData *data = [NSMutableData dataWithLength:fileInfo.uncompressed_size];
+    unsigned char *buffer = (unsigned char *)data.mutableBytes;
+    unsigned long long totalRead = 0;
+    int bytesRead = 0;
+    while (totalRead < fileInfo.uncompressed_size) {
+        bytesRead = unzReadCurrentFile(zip, buffer + totalRead, (unsigned int)(fileInfo.uncompressed_size - totalRead));
+        if (bytesRead < 0) {
+            unzCloseCurrentFile(zip);
+            unzClose(zip);
+            if (error) {
+                *error = [NSError errorWithDomain:SSZipArchiveErrorDomain code:SSZipArchiveErrorCodeFileContentNotReadable userInfo:@{NSLocalizedDescriptionKey: @"Failed to read entry data"}];
+            }
+            return nil;
+        }
+        if (bytesRead == 0) break;
+        totalRead += bytesRead;
+    }
+
+    unzCloseCurrentFile(zip);
+    unzClose(zip);
+
+    if (totalRead != fileInfo.uncompressed_size) {
+        if (error) {
+            *error = [NSError errorWithDomain:SSZipArchiveErrorDomain code:SSZipArchiveErrorCodeFileContentNotReadable userInfo:@{NSLocalizedDescriptionKey: @"Incomplete read"}];
+        }
+        return nil;
+    }
+
+    return data;
+}
+
 @end
 
 int _zipOpenEntry(_Nonnull zipFile entry, NSString *name, const mz_zip_file *zipfi, int16_t level, NSString *password, BOOL aes, int zip64)

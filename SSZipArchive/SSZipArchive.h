@@ -140,6 +140,8 @@ typedef NS_ENUM(NSInteger, SSZipArchiveErrorCode) {
 
 + (NSArray<ZipArchiveEntry *> *)entriesInZipFileAtPath:(NSString *)path error:(NSError **)error;
 
++ (nullable NSData *)dataForEntryAtPath:(NSString *)entryPath inZipFile:(NSString *)zipPath error:(NSError **)error;
+
 - (instancetype)init NS_UNAVAILABLE;
 - (instancetype)initWithPath:(NSString *)path NS_DESIGNATED_INITIALIZER;
 - (BOOL)open;
