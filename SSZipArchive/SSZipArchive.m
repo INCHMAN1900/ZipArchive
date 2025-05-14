@@ -1442,13 +1442,13 @@ BOOL _fileIsSymbolicLink(const unz_file_info *fileInfo);
         attributes[@"internal_fa"] = @(fileInfo.internal_fa);
 
         // 新增 type 属性
-        NSString *type = @"file";
+        ZipArchiveEntryType type = ZipArchiveEntryTypeFile;
         if ([entryPath _isDirectory]) {
-            type = @"directory";
+            type = ZipArchiveEntryTypeDirectory;
         } else if (_fileIsSymbolicLink(&fileInfo)) {
-            type = @"symlink";
+            type = ZipArchiveEntryTypeSymlink;
         }
-        attributes[@"type"] = type;
+        attributes[@"type"] = @(type);
 
         ZipArchiveEntry *entry = [[ZipArchiveEntry alloc] initWithPath:entryPath
                                                                  size:fileInfo.uncompressed_size
