@@ -11,6 +11,7 @@
 #import <Foundation/Foundation.h>
 
 #import "SSZipCommon.h"
+#import "ZipArchiveEntry.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -136,6 +137,8 @@ typedef NS_ENUM(NSInteger, SSZipArchiveErrorCode) {
                         AES:(BOOL)aes
             progressHandler:(void(^ _Nullable)(NSUInteger entryNumber, NSUInteger total))progressHandler
                keepSymlinks:(BOOL)keeplinks;
+
++ (NSArray<ZipArchiveEntry *> *)entriesInZipFileAtPath:(NSString *)path error:(NSError **)error;
 
 - (instancetype)init NS_UNAVAILABLE;
 - (instancetype)initWithPath:(NSString *)path NS_DESIGNATED_INITIALIZER;

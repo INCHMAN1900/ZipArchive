@@ -6,6 +6,7 @@
 //
 
 #import "SSZipArchive.h"
+#import "ZipArchiveEntry.h"
 #include "minizip/compat/ioapi.h"
 #include "minizip/compat/unzip.h"
 #include "minizip/compat/zip.h"
@@ -1388,6 +1389,58 @@ BOOL _fileIsSymbolicLink(const unz_file_info *fileInfo);
     NSDate *date = [self._gregorian dateFromComponents:components];
     NSAssert(date != nil, @"Failed to convert %u to date", msdosDateTime);
     return date;
+}
+
++ (NSArray<ZipArchiveEntry *> *)entriesInZipFileAtPath:(NSString *)path error:(NSError **)error
+{
+    NSMutableArray<ZipArchiveEntry *> *entries = [NSMutableArray array];
+    if (error) *error = nil;
+    zipFile zip = unzOpen(path.fileSystemRepresentation);
+    if (zip == NULL) {
+        if (error) {
+            *error = [NSError errorWithDomain:SSZipArchiveErrorDomain
+                                         code:SSZipArchiveErrorCodeFailedOpenZipFile
+                                     userInfo:@{NSLocalizedDescriptionKey: @"failed to open zip file"}];
+        }
+        return nil;
+    }
+
+    int ret = unzGoToFirstFile(zip);
+    while (ret == UNZ_OK) {
+        unz_file_info fileInfo = {};
+        char *filename = NULL;
+        ret = unzGetCurrentFileInfo(zip, &fileInfo, NULL, 0, NULL, 0, NULL, 0);
+        if (ret != UNZ_OK) break;
+        filename = (char *)malloc(fileInfo.size_filename + 1);
+        if (!filename) break;
+        ret = unzGetCurrentFileInfo(zip, &fileInfo, filename, fileInfo.size_filename + 1, NULL, 0, NULL, 0);
+        if (ret != UNZ_OK) {
+            free(filename);
+            break;
+        }
+        filename[fileInfo.size_filename] = '\0';
+        NSString *entryPath = [SSZipArchive _filenameStringWithCString:filename
+                                                        version_made_by:fileInfo.version
+                                                   general_purpose_flag:fileInfo.flag
+                                                                   size:fileInfo.size_filename];
+        free(filename);
+
+        NSMutableDictionary *attributes = [NSMutableDictionary dictionary];
+        attributes[@"modifiedDate"] = fileInfo.mz_dos_date != 0 ? [[self class] _dateWithMSDOSFormat:(UInt32)fileInfo.mz_dos_date] : [NSDate date];
+        attributes[@"isDirectory"] = @([entryPath _isDirectory]);
+        attributes[@"isResourceFork"] = @([entryPath _isResourceFork]);
+        attributes[@"external_fa"] = @(fileInfo.external_fa);
+        attributes[@"internal_fa"] = @(fileInfo.internal_fa);
+
+        ZipArchiveEntry *entry = [[ZipArchiveEntry alloc] initWithPath:entryPath
+                                                                 size:fileInfo.uncompressed_size
+                                                           attributes:attributes];
+        [entries addObject:entry];
+
+        ret = unzGoToNextFile(zip);
+    }
+    unzClose(zip);
+    return entries;
 }
 
 @end
