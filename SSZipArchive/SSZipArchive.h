@@ -175,6 +175,8 @@ typedef NS_ENUM(NSInteger, SSZipArchiveErrorCode) {
 
 - (void)zipArchiveProgressEvent:(unsigned long long)loaded total:(unsigned long long)total;
 
+- (BOOL)zipArchiveShouldUnzipEntryAtPath:(NSString *)entryPath;
+
 @end
 
 NS_ASSUME_NONNULL_END

@@ -496,7 +496,7 @@ BOOL _fileIsSymbolicLink(const unz_file_info *fileInfo);
                 ret = unzGoToNextFile(zip);
                 continue;
             }
-            
+                        
             // https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT
             // 4.4.17.1, All slashes MUST be forward slashes '/'
             // So there is no need to replace '\\' with '/'.
@@ -507,6 +507,15 @@ BOOL _fileIsSymbolicLink(const unz_file_info *fileInfo);
             if (made_by == 0 || made_by == 10) {
                 // Change Windows paths to Unix paths
                 strPath = [strPath stringByReplacingOccurrencesOfString:@"\\" withString:@"/"];
+            }
+
+            // Check if the entry should be unzipped
+            if ([delegate respondsToSelector:@selector(zipArchiveShouldUnzipEntryAtPath:)]) {
+                if (![delegate zipArchiveShouldUnzipEntryAtPath:strPath]) {
+                    unzCloseCurrentFile(zip);
+                    ret = unzGoToNextFile(zip);
+                    continue;
+                }
             }
             
             // Check if it contains directory
