@@ -510,8 +510,27 @@ BOOL _fileIsSymbolicLink(const unz_file_info *fileInfo);
             }
 
             // Check if the entry should be unzipped
-            if ([delegate respondsToSelector:@selector(zipArchiveShouldUnzipEntryAtPath:)]) {
-                if (![delegate zipArchiveShouldUnzipEntryAtPath:strPath]) {
+            if ([delegate respondsToSelector:@selector(zipArchiveShouldUnzipEntry:)]) {
+                // 构造 ZipArchiveEntry 实例
+                ZipArchiveEntryType type = ZipArchiveEntryTypeFile;
+                if ([strPath _isDirectory]) {
+                    type = ZipArchiveEntryTypeDirectory;
+                } else if (fileIsSymbolicLink) {
+                    type = ZipArchiveEntryTypeSymlink;
+                }
+                NSMutableDictionary *attributes = [NSMutableDictionary dictionary];
+                attributes[@"modifiedDate"] = fileInfo.mz_dos_date != 0 ? [[self class] _dateWithMSDOSFormat:(UInt32)fileInfo.mz_dos_date] : [NSDate date];
+                attributes[@"isDirectory"] = @([strPath _isDirectory]);
+                attributes[@"isResourceFork"] = @([strPath _isResourceFork]);
+                attributes[@"external_fa"] = @(fileInfo.external_fa);
+                attributes[@"internal_fa"] = @(fileInfo.internal_fa);
+                attributes[@"type"] = @(type);
+
+                ZipArchiveEntry *entry = [[ZipArchiveEntry alloc] initWithPath:strPath
+                                                                         size:fileInfo.uncompressed_size
+                                                                   attributes:attributes
+                                                                         type:type];
+                if (![delegate zipArchiveShouldUnzipEntry:entry]) {
                     unzCloseCurrentFile(zip);
                     ret = unzGoToNextFile(zip);
                     continue;
